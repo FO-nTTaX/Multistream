@@ -1,0 +1,297 @@
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+		<title>Multistream</title>
+		<meta charset="utf-8">
+		<meta name="viewport" content="initial-scale=1, width=device-width">
+		<link href="favicon.ico" rel="shortcut icon">
+		<meta http-equiv="X-UA-Compatible" content="IE=edge">
+		<meta name="description" content="Watch multiple streams from various platforms at once!">
+		<meta name="theme-color" content="#663399">
+		<style>
+			html,
+			body {
+				margin: 0;
+				padding: 0;
+				background-color: #161616;
+				font-family: sans-serif;
+			}
+			* {
+				box-sizing: border-box;
+			}
+			#menu {
+				display: none;
+			}
+			#menu.open {
+				display: block;
+				position: absolute;
+				top: 10px;
+				right: 10px;
+				width: 300px;
+				background-color: #333333;
+				padding: 10px;
+				overflow: auto;
+			}
+			#menuToggle {
+				color: #ffffff;
+				border: 1px solid #cccccc;
+				background-color: #333333;
+				width: 30px;
+				height: 30px;
+				text-align: center;
+				position: absolute;
+				top: 5px;
+				right: 5px;
+				cursor: pointer;
+				padding: 0;
+			}
+			#menu h2 {
+				color: #ffffff;
+				margin: 2px 0 5px 0;
+			}
+			#platformDropdown {
+				display: block;
+				padding: 5px;
+				width:100%;
+			}
+			#channelInput {
+				display: block;
+				padding: 5px;
+				width:100%;
+			}
+			#addButton {
+				display: block;
+				padding: 5px;
+				width:100%;
+			}
+			.openStreamsItem {
+				color: #ffffff;
+			}
+			.openStreamsItem button {
+				color: #ffffff;
+				border: 1px solid #cccccc;
+				background-color: #333333;
+				width: 16px;
+				height: 16px;
+				line-height: 16px;
+				text-align: center;
+				cursor: pointer;
+				padding: 0;
+				margin-left:10px;
+			}
+			#streamWrapper {
+				text-align: center;
+			}
+			.stream {
+				position: relative;
+				display:inline-block;
+				width: 85%;
+			}
+			.streamSpacer {
+				padding-top: 56.25%;
+			}
+			#streamWrapper[data-count="2"] .stream,
+			#streamWrapper[data-count="3"] .stream,
+			#streamWrapper[data-count="4"] .stream {
+				width: 45%;
+			}
+			#streamWrapper[data-count="5"] .stream,
+			#streamWrapper[data-count="6"] .stream,
+			#streamWrapper[data-count="7"] .stream,
+			#streamWrapper[data-count="8"] .stream,
+			#streamWrapper[data-count="9"] .stream {
+				width: 30%;
+			}
+			#streamWrapper[data-count="10"] .stream,
+			#streamWrapper[data-count="11"] .stream,
+			#streamWrapper[data-count="12"] .stream,
+			#streamWrapper[data-count="13"] .stream,
+			#streamWrapper[data-count="14"] .stream,
+			#streamWrapper[data-count="15"] .stream,
+			#streamWrapper[data-count="16"] .stream {
+				width: 22%;
+			}
+			#streamWrapper[data-count="17"] .stream,
+			#streamWrapper[data-count="18"] .stream,
+			#streamWrapper[data-count="19"] .stream,
+			#streamWrapper[data-count="20"] .stream,
+			#streamWrapper[data-count="21"] .stream,
+			#streamWrapper[data-count="22"] .stream,
+			#streamWrapper[data-count="23"] .stream,
+			#streamWrapper[data-count="24"] .stream,
+			#streamWrapper[data-count="25"] .stream {
+				width: 18%;
+			}
+		</style>
+	</head>
+	<body>
+		<div id="app"></div>
+		<script>
+			( function( window, document ){
+				'use strict';
+				var script = {
+					platforms: {
+						afreeca: 'https://play.afreecatv.com/$$$channel$$$/embed',
+						bilibili: 'https://www.bilibili.com/blackboard/live/live-activity-player.html?cid=$$$channel$$$',
+						dailymotion: 'https://www.dailymotion.com/embed/video/$$$channel$$$?autoPlay=1',
+						douyu: 'https://open.douyu.com/tpl/h5/chain2/DOTA/$$$channel$$$',
+						facebook: 'https://www.facebook.com/plugins/video.php?href=https%3A%2F%2Fwww.facebook.com%2F$$$channel$$$%2Flive%2F&width=1920&height=1080',
+						huomao: 'https://www.huomao.com/outplayer/index/$$$channel$$$',
+						huya: 'https://liveshare.huya.com/iframe/$$$channel$$$',
+						pandatv: 'https://www.panda.tv/roomframe/$$$channel$$$',
+						play2live: 'https://front.video.p2l.tv/live/$$$channel$$$',
+						smashcast: 'https://www.smashcast.tv/embed/$$$channel$$$?autoplay=true',
+						trovo: 'https://trovo.live/embed/player?streamername=$$$channel$$$',
+						twitch: 'https://player.twitch.tv/?channel=$$$channel$$$&parent=$$$host$$$',
+						youtube: 'https://www.youtube.com/embed/$$$channel$$$'
+					},
+					openStreams: {},
+					init: function( window, document ) {
+						const app = document.getElementById( 'app' );
+						const streamWrapper = document.createElement( 'div' );
+						streamWrapper.id = 'streamWrapper';
+						streamWrapper.dataset.count = 0;
+						app.appendChild( streamWrapper );
+						script.createMenu( window, document, app );
+						script.createStreamsFromHash( window );
+					},
+					createStreamsFromHash( window ) {
+						let hash = window.location.hash;
+						if ( hash !== '' ) {
+							hash = hash.replace( '#', '' );
+							if ( hash !== '' ) {
+								const streams = hash.split( script.streamSeparator );
+								streams.forEach( function( stream ) {
+									const streamData = stream.split( script.channelSeparator );
+									script.addStream( window, streamData[ 0 ], streamData[ 1 ] );
+								} );
+							}
+							document.getElementById( 'menu' ).classList.remove( 'open' );
+						}
+					},
+					createMenu: function( window, document, parent ) {
+						const menu = document.createElement( 'div' );
+						menu.id = 'menu';
+						menu.classList.add( 'open' );
+
+						const menuToggle = document.createElement( 'button' );
+						menuToggle.addEventListener( 'click', function() {
+							menu.classList.toggle( 'open' );
+						} );
+						menuToggle.id = 'menuToggle';
+						menuToggle.innerHTML = '<svg height="16px" width="16px" version="1.1" viewBox="0 0 32 32" xml:space="preserve" xmlns="http://www.w3.org/2000/svg"><path style="fill:#ffffff;" d="M4,10h24c1.104,0,2-0.896,2-2s-0.896-2-2-2H4C2.896,6,2,6.896,2,8S2.896,10,4,10z M28,14H4c-1.104,0-2,0.896-2,2  s0.896,2,2,2h24c1.104,0,2-0.896,2-2S29.104,14,28,14z M28,22H4c-1.104,0-2,0.896-2,2s0.896,2,2,2h24c1.104,0,2-0.896,2-2  S29.104,22,28,22z"/></svg>';
+						parent.appendChild( menu );
+						parent.appendChild( menuToggle );
+
+						const addHeading = document.createElement( 'h2' );
+						addHeading.innerHTML = 'Add Stream';
+						menu.appendChild( addHeading );
+
+						const platformDropdown = document.createElement( 'select' );
+						platformDropdown.id = 'platformDropdown';
+						let keys = Object.keys( script.platforms );
+						keys.forEach( function( key ) {
+							const option = document.createElement( 'option' );
+							option.value = key;
+							option.innerHTML = key;
+							platformDropdown.appendChild( option );
+						} );
+						menu.appendChild( platformDropdown );
+
+						const channelInput = document.createElement( 'input' );
+						channelInput.id = 'channelInput';
+						channelInput.placeholder = 'Channel name';
+						menu.appendChild( channelInput );
+
+						const addButton = document.createElement( 'button' );
+						addButton.id = 'addButton';
+						addButton.innerHTML = 'Add stream';
+						addButton.addEventListener( 'click', function() {
+							script.addStream( window, platformDropdown.value, channelInput.value );
+						} );
+						menu.appendChild( addButton );
+
+						const openHeading = document.createElement( 'h2' );
+						openHeading.innerHTML = 'Open Streams';
+						menu.appendChild( openHeading );
+
+						const openStreams = document.createElement( 'div' );
+						openStreams.id = 'openStreams';
+						menu.appendChild( openStreams );
+					},
+					sanitize: function( raw ) {
+						return raw
+							.replace( /</g, '&lt;' )
+							.replace( />/g, '&gt;' )
+							.replace( /"/g, '&quot;' )
+							.replace( /'/g, '&#039;' )
+							.replace( /&/g, '&amp;' );
+					},
+					addStream: function( window, platform, channel ) {
+						platform = script.sanitize( platform );
+						channel = script.sanitize( channel );
+						const url = script.platforms[ platform ].replace( '$$$channel$$$', channel ).replace( '$$$host$$$', window.location.host );
+						const frameWrapper = script.makeIframe( url );
+						const streamWrapper = document.getElementById( 'streamWrapper' );
+						streamWrapper.appendChild( frameWrapper );
+
+						script.openStreams[ platform + script.channelSeparator + channel ] = frameWrapper;
+
+						const streamName = platform + '/' + channel;
+						const openStreams = document.getElementById( 'openStreams' );
+						const openStreamsItem = document.createElement( 'div' );
+						openStreamsItem.innerHTML = streamName;
+						openStreamsItem.classList.add( 'openStreamsItem' );
+						const openStreamsItemRemove = document.createElement( 'button' );
+						openStreamsItemRemove.innerHTML = '&times;';
+						openStreamsItemRemove.addEventListener( 'click', function() {
+							frameWrapper.remove();
+							openStreamsItem.remove();
+							delete script.openStreams[ platform + script.channelSeparator + channel ];
+							script.setStreamCount();
+							script.setHash( window );
+						} );
+						openStreamsItem.appendChild( openStreamsItemRemove );
+						openStreams.appendChild( openStreamsItem );
+						script.setStreamCount();
+						script.setHash( window );
+					},
+					makeIframe: function( url ) {
+						const frame = document.createElement( 'iframe' );
+						frame.src = url;
+						frame.setAttribute( 'frameborder', 0 );
+						frame.setAttribute( 'allowfullscreen', 'true' );
+						frame.setAttribute( 'allow', 'autoplay; fullscreen' );
+						frame.setAttribute( 'scrolling', 'no' );
+						frame.style.width = '100%';
+						frame.style.height = '100%';
+						frame.style.position = 'absolute';
+						frame.style.top = 0;
+						frame.style.left = 0;
+						const frameWrapper = document.createElement( 'div' );
+						frameWrapper.classList.add( 'stream' );
+						const frameSpacer = document.createElement( 'div' );
+						frameSpacer.classList.add( 'streamSpacer' );
+						frameWrapper.appendChild( frameSpacer );
+						frameWrapper.appendChild( frame );
+						return frameWrapper;
+					},
+					setStreamCount: function() {
+						const count = Object.keys( script.openStreams ).length;
+						document.getElementById( 'streamWrapper' ).dataset.count = count;
+					},
+					setHash: function( window ) {
+						const streams = Object.keys( script.openStreams );
+						window.location.hash = streams.join( script.streamSeparator );
+					},
+					streamSeparator: '%7C',
+					channelSeparator: '%3D'
+				};
+				script.init( window, document );
+			}( window, document ) );
+		</script>
+		<!--
+		Made with love by FO-nTTaX <3
+		-->
+	</body>
+</html>
